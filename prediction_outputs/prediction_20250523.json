@@ -1,0 +1,17 @@
+{
+  "date": "20250523",
+  "tickers": [
+    "AAPL",
+    "MSFT",
+    "GOOGL"
+  ],
+  "prediction_results": {
+    "date": "2025-05-22",
+    "prediction_horizon": 5,
+    "predictions": {
+      "direction": 0.13176306325120613,
+      "magnitude": -0.17443647321714262,
+      "volatility": 0.9551412948046636
+    }
+  }
+}

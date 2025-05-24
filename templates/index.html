@@ -1,0 +1,184 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VectorFin - Financial Prediction Interface</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { padding-top: 20px; }
+        .prediction-card { margin-top: 20px; }
+        .news-textarea { height: 200px; }
+        .interpretation { white-space: pre-wrap; }
+        .loading { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="mb-4">VectorFin Financial Prediction Interface</h1>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">Input Parameters</div>
+                    <div class="card-body">
+                        <form id="predictionForm">
+                            <div class="mb-3">
+                                <label for="tickers" class="form-label">Stock Tickers (comma-separated)</label>
+                                <input type="text" class="form-control" id="tickers" placeholder="AAPL,MSFT,GOOGL" required>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="news" class="form-label">Recent News (one per line, include dates if available)</label>
+                                <textarea class="form-control news-textarea" id="news" placeholder="2023-05-15: Apple announces new AI features&#10;2023-05-14: Microsoft expands cloud services"></textarea>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="predictionHorizon" class="form-label">Prediction Horizon (days)</label>
+                                <input type="number" class="form-control" id="predictionHorizon" value="5" min="1" max="30">
+                            </div>
+                            
+                            <div class="mb-3 form-check">
+                                <input type="checkbox" class="form-check-input" id="useLlm">
+                                <label class="form-check-label" for="useLlm">Use LLM for interpretation</label>
+                            </div>
+                            
+                            <div class="mb-3 llm-question" style="display:none;">
+                                <label for="llmQuestion" class="form-label">Question for LLM (optional)</label>
+                                <input type="text" class="form-control" id="llmQuestion" placeholder="How should I interpret this for a short-term strategy?">
+                            </div>
+                            
+                            <button type="submit" class="btn btn-primary">Generate Prediction</button>
+                            <div class="loading mt-3">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <span class="ms-2">Processing...</span>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card prediction-card">
+                    <div class="card-header">Prediction Results</div>
+                    <div class="card-body">
+                        <div id="results">
+                            <p class="text-muted">Submit the form to generate a prediction.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card prediction-card llm-card" style="display:none;">
+                    <div class="card-header">LLM Interpretation</div>
+                    <div class="card-body">
+                        <div id="llmResults" class="interpretation">
+                            <p class="text-muted">Enable LLM interpretation to see analysis.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('useLlm').addEventListener('change', function() {
+            const llmQuestion = document.querySelector('.llm-question');
+            const llmCard = document.querySelector('.llm-card');
+            
+            if (this.checked) {
+                llmQuestion.style.display = 'block';
+                llmCard.style.display = 'block';
+            } else {
+                llmQuestion.style.display = 'none';
+                llmCard.style.display = 'none';
+            }
+        });
+        
+        document.getElementById('predictionForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Show loading indicator
+            document.querySelector('.loading').style.display = 'block';
+            document.getElementById('results').innerHTML = '<p>Processing prediction...</p>';
+            document.getElementById('llmResults').innerHTML = '<p>Waiting for prediction results...</p>';
+            
+            const formData = {
+                tickers: document.getElementById('tickers').value,
+                news: document.getElementById('news').value,
+                predictionHorizon: document.getElementById('predictionHorizon').value,
+                useLlm: document.getElementById('useLlm').checked,
+                llmQuestion: document.getElementById('llmQuestion').value
+            };
+            
+            fetch('/predict', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Hide loading indicator
+                document.querySelector('.loading').style.display = 'none';
+                
+                if (data.error) {
+                    document.getElementById('results').innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+                    return;
+                }
+                
+                // Format prediction results
+                const pred = data.prediction.predictions;
+                const directionText = pred.direction > 0.5 ? 'Upward' : 'Downward';
+                const directionConfidence = Math.abs((pred.direction - 0.5) * 2) * 100;
+                
+                let resultsHtml = `
+                    <h5>Prediction for ${data.prediction.date} (${data.prediction.prediction_horizon} days ahead)</h5>
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <tr>
+                                <th>Metric</th>
+                                <th>Value</th>
+                                <th>Interpretation</th>
+                            </tr>
+                            <tr>
+                                <td>Direction</td>
+                                <td>${(pred.direction * 100).toFixed(1)}%</td>
+                                <td>${directionText} movement (${directionConfidence.toFixed(1)}% confidence)</td>
+                            </tr>
+                            <tr>
+                                <td>Magnitude</td>
+                                <td>${(pred.magnitude * 100).toFixed(2)}%</td>
+                                <td>Expected ${pred.magnitude >= 0 ? 'gain' : 'loss'} of ${Math.abs(pred.magnitude * 100).toFixed(2)}%</td>
+                            </tr>
+                            <tr>
+                                <td>Volatility</td>
+                                <td>${(pred.volatility * 100).toFixed(2)}%</td>
+                                <td>${pred.volatility < 0.01 ? 'Low' : pred.volatility < 0.03 ? 'Moderate' : 'High'} expected volatility</td>
+                            </tr>
+                        </table>
+                    </div>
+                `;
+                
+                document.getElementById('results').innerHTML = resultsHtml;
+                
+                // Display LLM interpretation if available
+                if (data.llm_interpretation) {
+                    document.getElementById('llmResults').innerHTML = data.llm_interpretation
+                        .replace(/\n/g, '<br>')
+                        .replace(/
+/g, '<br>');
+                }
+            })
+            .catch(error => {
+                document.querySelector('.loading').style.display = 'none';
+                document.getElementById('results').innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
+            });
+        });
+    </script>
+</body>
+</html>
+        

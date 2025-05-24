@@ -1,0 +1,17 @@
+Metadata-Version: 2.4
+Name: vectorfin
+Version: 0.1.0
+Summary: A multimodal financial analysis system combining text and market data
+Author: Jonathan Wallace
+Author-email: jonathan@example.com
+Requires-Dist: torch
+Requires-Dist: pandas
+Requires-Dist: numpy
+Requires-Dist: matplotlib
+Requires-Dist: transformers
+Requires-Dist: scikit-learn
+Requires-Dist: yfinance
+Dynamic: author
+Dynamic: author-email
+Dynamic: requires-dist
+Dynamic: summary

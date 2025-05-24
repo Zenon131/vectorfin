@@ -1,0 +1,18 @@
+torch>=2.6.0,<2.7.0           # require the patched torch (>=2.6.0 to avoid CVE-2025-32434)
+torchvision>=0.21.0,<0.22.0   # torchvision 0.21.x is compatible with torch 2.6.x
+transformers>=4.35.0
+numpy>=1.24.0,<1.27.0
+pandas>=2.0.0
+scikit-learn>=1.2.0
+matplotlib>=3.7.0
+seaborn>=0.12.0
+tqdm>=4.65.0
+tensorboard>=2.12.0
+faiss-cpu>=1.7.0  # Use faiss-gpu for GPU support
+ta>=0.10.0  # Technical analysis indicators
+yfinance>=0.2.0  # For financial data retrieval
+spacy>=3.5.0  # For NLP preprocessing
+nltk>=3.8.0
+pytest>=7.3.0  # Testing
+black>=23.3.0  # Code formatting
+flake8>=6.0.0  # Code linting

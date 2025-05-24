@@ -1,0 +1,7 @@
+README.md
+setup.py
+vectorfin.egg-info/PKG-INFO
+vectorfin.egg-info/SOURCES.txt
+vectorfin.egg-info/dependency_links.txt
+vectorfin.egg-info/requires.txt
+vectorfin.egg-info/top_level.txt

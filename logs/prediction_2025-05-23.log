@@ -1,0 +1,104 @@
+===== VectorFin Daily Prediction =====
+Date: 2025-05-23
+Time: 09:05:22
+===================================
+Running prediction script...
+Loading model from ./trained_models...
+Successfully loaded direction predictor with simplified model structure
+Successfully loaded magnitude predictor with simplified model structure
+Successfully loaded volatility predictor with simplified model structure
+Successfully loaded timing predictor with simplified model structure
+Models loaded from ./trained_models
+Model loaded successfully!
+Fetching market data for ['AAPL', 'MSFT', 'GOOGL']...
+YF.download() has changed argument auto_adjust default to True
+Making prediction with horizon of 5 days...
+
+--- Prediction Results ---
+{
+  "date": "2025-05-22",
+  "prediction_horizon": 5,
+  "predictions": {
+    "direction": 0.13176306325120613,
+    "magnitude": -0.17443647321714262,
+    "volatility": 0.9551412948046636
+  }
+}
+
+--- LLM Interpretation Prompt ---
+
+    Based on financial data and news analysis, interpret the following prediction:
+    
+    Prediction Horizon: 5 days
+    
+    Market Data Summary:
+    AAPL: -4.69% price change over last 5 days, average volume: 49844140
+MSFT: 0.13% price change over last 5 days, average volume: 19568080
+GOOGL: 2.82% price change over last 5 days, average volume: 53613460
+    
+    Recent News Headlines:
+    2025-05-22: U.S. stock market futures – Wall Street rebounds as Dow, S&P 500, and Nasdaq rise: Top gainers, losers, investor picks, and caut (Sentiment: unknown)
+2025-05-22: Why Google could help Alphabet win the AI race (Sentiment: unknown)
+2025-05-22: Infrastructure Stocks To Consider – May 20th (Sentiment: unknown)
+2025-05-22: Best Cybersecurity Stocks To Watch Today – May 19th (Sentiment: unknown)
+2025-05-22: Anker Japan、一般的な45W充電器と比較して約33%小型ながらMacBook AirなどノートPCの充電も可能なUSB-C充電器「Anker Nano Charger (45W) with USB-C ケーブル」を発売。 (Sentiment: unknown)
+    
+    Model Prediction Results:
+    {
+  "date": "2025-05-22",
+  "prediction_horizon": 5,
+  "predictions": {
+    "direction": 0.13176306325120613,
+    "magnitude": -0.17443647321714262,
+    "volatility": 0.9551412948046636
+  }
+}
+    
+    Please provide:
+    1. A concise interpretation of the prediction
+    2. Key factors that might be influencing this prediction
+    3. Potential risks or uncertainties to consider
+    4. A recommendation based on this prediction (buy, hold, sell, etc.)
+    
+
+--- LLM Interpretation ---
+Okay, here’s an analysis of the provided market prediction:
+
+**1. Concise Interpretation:**
+
+The model predicts a slight negative directional movement (-0.174) for the overall market over the next 5 days, with moderate volatility (0.96).  While MSFT shows a small positive trend (+0.13%), AAPL is experiencing significant downward pressure (-4.69%). GOOGL’s performance is slightly positive but less pronounced than MSFT. The prediction suggests a continuation of recent trends, leaning towards caution.
+
+**2. Key Factors Influencing the Prediction:**
+
+* **AAPL's Weak Performance:**  The substantial -4.69% price decline over the last 5 days for Apple is the dominant factor driving the negative prediction. This could be due to various factors – potential concerns about iPhone sales, macroeconomic headwinds impacting consumer spending, or broader market sentiment towards technology stocks.
+* **MSFT's Slight Positive Trend:** Microsoft’s modest gain (+0.13%) offers a small counterweight, indicating some investor confidence in the company.  This could be related to their AI investments (as highlighted by the news).
+* **GOOGL's Moderate Gain:** Google’s 2.82% increase suggests ongoing interest and potentially positive developments around their AI strategy.
+* **Recent News Themes:** The headlines focus on infrastructure, cybersecurity, and specifically Google’s potential in the AI race. These suggest a sector-specific shift – increased investment and attention to these areas could be impacting individual stock performance.  The news about Anker Japan is largely irrelevant to broad market movements.
+
+**3. Potential Risks & Uncertainties:**
+
+* **Apple's Specific Issues:** The root cause of AAPL’s decline needs further investigation. Is it a temporary correction, or does it signal deeper problems?
+* **Macroeconomic Uncertainty:**  The broader economic environment remains uncertain (inflation, interest rates). Any negative data releases could exacerbate market volatility.
+* **AI Market Volatility:** While Google is seen as a leader in AI, the sector itself can be highly volatile and subject to rapid shifts in investor sentiment.
+* **Sentiment Analysis Limitations:** The "sentiment: unknown" for many headlines means we lack crucial context about how investors *feel* about these developments.  A sudden shift in investor confidence could significantly alter the market’s trajectory.
+
+
+**4. Recommendation:**
+
+Based on this prediction, a **Hold** strategy is recommended with a cautious approach. 
+
+* **Rationale:** The model's volatility (0.96) indicates that significant price swings are possible. Given AAPL's weakness and the uncertain macroeconomic environment, there’s a reasonable risk of further declines.  However, MSFT and GOOGL offer some stability.
+* **Actionable Steps:** 
+    * **Monitor AAPL closely:** Understand *why* Apple is underperforming.
+    * **Diversify:** Ensure your portfolio isn't overly concentrated in any single sector (especially technology).
+    * **Consider a smaller position size:** If you’re bullish on the overall market, consider reducing your exposure to mitigate risk.
+
+---
+
+**Disclaimer:** *This analysis is based solely on the provided data and model output. It does not constitute financial advice. Investing involves risks, and past performance is not indicative of future results.*
+Prediction results saved to /Users/jonathanwallace/vectorfin/prediction_outputs/prediction_20250523.json
+Interpretation saved to /Users/jonathanwallace/vectorfin/prediction_outputs/interpretation_20250523.txt
+Prediction history updated in /Users/jonathanwallace/vectorfin/prediction_outputs/prediction_history.csv
+Prediction completed successfully.
+===================================
+Process completed at 09:05:58
