@@ -153,21 +153,27 @@ def query_llm_for_interpretation(prediction_results, market_data, news_data, pre
     print("\n--- LLM Interpretation Prompt ---")
     print(prompt)
     
-    # In a real implementation, you would make an API call like this:
-    response = requests.post(
-        "http://192.168.68.122:6223/v1/chat/completions",  # Or your preferred LLM API
-        json={
-            "model": "gemma-3-4b-it-qat",  # Or your preferred model
-            "messages": [
-                {"role": "system", "content": "You are a financial analysis assistant that interprets market predictions."},
-                {"role": "user", "content": prompt}
-            ],
-            "temperature": 0.3
-        }
-    )
-    interpretation = response.json()["choices"][0]["message"]["content"]
+    try:
+        # Try to connect to LLM API with a timeout to avoid long waits
+        response = requests.post(
+            "http://192.168.68.122:6223/v1/chat/completions",  # Or your preferred LLM API
+            json={
+                "model": "gemma-3-4b-it-qat",  # Or your preferred model
+                "messages": [
+                    {"role": "system", "content": "You are a financial analysis assistant that interprets market predictions."},
+                    {"role": "user", "content": prompt}
+                ],
+                "temperature": 0.3
+            },
+            timeout=5  # Set a 5 second timeout
+        )
+        interpretation = response.json()["choices"][0]["message"]["content"]
+    except (requests.RequestException, KeyError, ValueError) as e:
+        print(f"\n--- LLM Connection Failed: {str(e)} ---")
+        print("Generating fallback interpretation...")
+        interpretation = generate_fallback_interpretation(prediction_results, market_data, news_data)
     
-    # Add fallback in case API call fails
+    # Add fallback in case API response doesn't contain valid interpretation
     if not interpretation:
         print("Warning: API call failed or returned empty response. Using fallback interpretation.")
         interpretation = """
@@ -307,6 +313,105 @@ def make_prediction(system, news_data, market_data, prediction_horizon=5):
     
     return results
     
+
+def generate_fallback_interpretation(prediction_results, market_data, news_data):
+    """Generate a fallback interpretation when LLM is not available."""
+    direction = prediction_results["predictions"]["direction"]
+    magnitude = prediction_results["predictions"]["magnitude"]
+    volatility = prediction_results["predictions"]["volatility"]
+    
+    # Determine direction strength
+    if direction > 0.75:
+        direction_desc = "strong bullish"
+    elif direction > 0.60:
+        direction_desc = "moderately bullish"
+    elif direction > 0.50:
+        direction_desc = "slightly bullish"
+    elif direction > 0.40:
+        direction_desc = "slightly bearish"
+    elif direction > 0.25:
+        direction_desc = "moderately bearish"
+    else:
+        direction_desc = "strong bearish"
+    
+    # Categorize magnitude
+    if magnitude > 5:
+        magnitude_desc = "very large"
+    elif magnitude > 3:
+        magnitude_desc = "large"
+    elif magnitude > 1.5:
+        magnitude_desc = "moderate"
+    else:
+        magnitude_desc = "small"
+    
+    # Categorize volatility
+    if volatility > 4:
+        volatility_desc = "extremely high"
+    elif volatility > 2.5:
+        volatility_desc = "high"
+    elif volatility > 1.5:
+        volatility_desc = "moderate"
+    else:
+        volatility_desc = "low"
+    
+    # Recent price movement
+    ticker_movements = []
+    if isinstance(market_data, dict):
+        for ticker, df in market_data.items():
+            try:
+                recent_change = ((df['close'].iloc[-1] / df['close'].iloc[-6]) - 1) * 100
+                ticker_movements.append(f"{ticker} ({recent_change:.1f}%)")
+            except:
+                pass
+    ticker_movement_text = ", ".join(ticker_movements) if ticker_movements else "recent market movement"
+    
+    # Generate interpretation
+    interpretation = f"""## Financial Prediction Interpretation (FALLBACK)
+
+### Summary
+The model predicts a {direction_desc} signal with {magnitude_desc} expected price movement ({magnitude:.2f}%) and {volatility_desc} volatility ({volatility:.2f}%) over the next {prediction_results['prediction_horizon']} days.
+
+### Key Factors
+- Current direction probability: {direction:.2f} (>0.5 indicates upward movement)
+- Recent market performance: {ticker_movement_text}
+- News sentiment may be affecting the prediction
+
+### Potential Risks
+- Higher than normal volatility indicates increased uncertainty
+- Market conditions could change rapidly
+- External factors not captured in the data may affect outcomes
+
+### Recommendation
+Based on the {direction_desc} signal with {volatility_desc} volatility, consider a {get_recommendation(direction, volatility)} approach to this market.
+"""
+    
+    return interpretation
+
+
+def get_recommendation(direction, volatility):
+    """Generate a recommendation based on direction and volatility."""
+    if direction > 0.75:
+        if volatility < 2.0:
+            return "strong buy"
+        else:
+            return "cautious buy with position sizing to account for volatility"
+    elif direction > 0.60:
+        if volatility < 2.5:
+            return "moderate buy"
+        else:
+            return "small position buy with tight risk controls"
+    elif direction > 0.50:
+        return "hold with potential to add on dips"
+    elif direction > 0.40:
+        return "hold, but avoid adding to positions"
+    elif direction > 0.25:
+        if volatility < 2.5:
+            return "reduce positions"
+        else:
+            return "consider protective options or reduce positions"
+    else:
+        return "sell or consider short positions with strict risk management"
+
 
 def main():
     # Define parameters

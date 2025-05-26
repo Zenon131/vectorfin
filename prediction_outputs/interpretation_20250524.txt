@@ -1,0 +1,22 @@
+VectorFin Prediction Interpretation
+Date: 20250524
+Tickers: AAPL, MSFT, GOOGL
+==================================================
+
+## Financial Prediction Interpretation (FALLBACK)
+
+### Summary
+The model predicts a moderately bearish signal with small expected price movement (-2.64%) and moderate volatility (2.17%) over the next 5 days.
+
+### Key Factors
+- Current direction probability: 0.32 (>0.5 indicates upward movement)
+- Recent market performance: recent market movement
+- News sentiment may be affecting the prediction
+
+### Potential Risks
+- Higher than normal volatility indicates increased uncertainty
+- Market conditions could change rapidly
+- External factors not captured in the data may affect outcomes
+
+### Recommendation
+Based on the moderately bearish signal with moderate volatility, consider a reduce positions approach to this market.

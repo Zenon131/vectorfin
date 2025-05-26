@@ -1,0 +1,22 @@
+VectorFin Prediction Interpretation
+Date: 20250526
+Tickers: AAPL, MSFT, GOOGL
+==================================================
+
+## Financial Prediction Interpretation (FALLBACK)
+
+### Summary
+The model predicts a strong bullish signal with small expected price movement (-0.55%) and low volatility (1.33%) over the next 5 days.
+
+### Key Factors
+- Current direction probability: 0.88 (>0.5 indicates upward movement)
+- Recent market performance: recent market movement
+- News sentiment may be affecting the prediction
+
+### Potential Risks
+- Higher than normal volatility indicates increased uncertainty
+- Market conditions could change rapidly
+- External factors not captured in the data may affect outcomes
+
+### Recommendation
+Based on the strong bullish signal with low volatility, consider a strong buy approach to this market.
