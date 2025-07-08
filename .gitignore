@@ -64,7 +64,8 @@ venv.bak/
 ehthumbs.db
 Thumbs.db
 
-# Logs
+# Logs and Predictive Outputs
+prediction_outputs/
 *.log
 logs/
 
@@ -72,7 +73,17 @@ logs/
 *.tmp
 *.temp
 
+# Backups
+*.bak
+
 # API Keys and secrets
 *.key
 secrets.json
 config.json
+
+
+# READMEs
+README-API.md
+README-CLEAN.md
+README-CONSOLIDATED.md
+README-UPDATED.md

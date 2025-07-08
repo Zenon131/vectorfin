@@ -27,8 +27,10 @@ echo "===================================" >> "$LOG_FILE"
 # Navigate to script directory
 cd "$SCRIPT_DIR" || { echo "Failed to navigate to script directory" >> "$LOG_FILE"; exit 1; }
 
-# Activate virtual environment if needed (uncomment and modify if using venv)
-# source venv/bin/activate >> "$LOG_FILE" 2>&1 || { echo "Failed to activate virtual environment" >> "$LOG_FILE"; exit 1; }
+# Activate conda environment
+echo "Activating conda environment..." >> "$LOG_FILE"
+eval "$(conda shell.bash hook)"
+conda activate vectorfin >> "$LOG_FILE" 2>&1 || { echo "Failed to activate conda environment" >> "$LOG_FILE"; exit 1; }
 
 # Check if .env file exists
 if [ ! -f "$SCRIPT_DIR/.env" ]; then
@@ -38,7 +40,7 @@ fi
 
 # Run the prediction script
 echo "Running prediction script..." >> "$LOG_FILE"
-python3 "$SCRIPT_DIR/examples/interact_with_model.py" >> "$LOG_FILE" 2>&1
+python "$SCRIPT_DIR/examples/interact_with_model.py" >> "$LOG_FILE" 2>&1
 
 # Check if prediction was successful
 if [ $? -eq 0 ]; then
@@ -59,7 +61,8 @@ fi
 echo "===================================" >> "$LOG_FILE"
 echo "Process completed at $(date +%H:%M:%S)" >> "$LOG_FILE"
 
-# Deactivate virtual environment if activated (uncomment if using venv)
-# deactivate
+# Deactivate conda environment
+conda deactivate >> "$LOG_FILE" 2>&1
 
+echo "Conda environment deactivated." >> "$LOG_FILE"
 exit 0

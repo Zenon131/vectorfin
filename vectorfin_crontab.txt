@@ -1,8 +1,8 @@
 # VectorFin daily prediction cron job - Run at 8:00 AM every day
-0 8 * * * /Users/jonathanwallace/vectorfin/run_daily_prediction.sh
+0 8 * * * /Users/jonathanwallace/Projects/vectorfin/run_daily_prediction.sh
 
 # Optional: Run also after market close at 4:30 PM on weekdays (Mon-Fri)
-# 30 16 * * 1-5 /Users/jonathanwallace/vectorfin/run_daily_prediction.sh
+# 30 16 * * 1-5 /Users/jonathanwallace/Projects/vectorfin/run_daily_prediction.sh
 
 # To install this cron job:
 # 1. Run: crontab -e

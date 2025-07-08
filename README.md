@@ -10,6 +10,7 @@ This system represents a novel approach to financial analysis by:
 2. **Multi-modal Learning**: Leverages cross-attention mechanisms to allow text and numerical data to influence each other
 3. **Explainable Predictions**: Provides attention-based explanations for which inputs influenced predictions
 4. **Vector Space Operations**: Enables semantic navigation of financial concepts
+5. **Production-Ready API**: Exposes predictions through a RESTful API with custom LLM integration
 
 ## Core Components
 
@@ -45,6 +46,15 @@ Converts unified vectors into actionable insights through:
 - Attention-based explainability
 - Semantic navigation of the vector space
 
+### 5. API Server
+
+Exposes VectorFin capabilities through a RESTful API:
+
+- Authentication and rate limiting
+- Custom LLM integration for interpretations
+- Configurable prediction parameters
+- Robust error handling and fallbacks
+
 ## Installation
 
 ```bash
@@ -52,8 +62,11 @@ Converts unified vectors into actionable insights through:
 git clone https://github.com/yourusername/vectorfin.git
 cd vectorfin
 
-# Install requirements
+# Install core requirements
 pip install -r requirements.txt
+
+# For API functionality, install API requirements
+pip install -r requirements-api.txt
 ```
 
 ## Prerequisites
@@ -61,22 +74,39 @@ pip install -r requirements.txt
 Before using VectorFin, you'll need:
 
 1. **NewsAPI Key**: Required for fetching real financial news. Sign up at [newsapi.org](https://newsapi.org/).
-2. **Local LLM Endpoint (Optional)**: For enhanced interpretation, you can use a local language model server. The default setup expects an endpoint at `http://192.168.68.122:6223/v1/chat/completions` using a Gemma model, but this can be modified.
+2. **LLM API**: For enhanced prediction interpretation. You can use:
+   - Local LLM setup (default configuration)
+   - OpenAI API (requires API key)
+   - Any other LLM provider with an OpenAI-compatible endpoint
 
 ## Environment Setup
 
 Create a `.env` file in the root directory with the following variables:
 
 ```
+# Required for news data
 NEWS_API_KEY=your_newsapi_key_here
-LLM_API_URL=your_llm_api_url_here  # Optional, defaults to local endpoint
+
+# LLM configuration (optional, defaults provided)
+LLM_API_URL=your_llm_api_url_here
+INTERPRETATION_MODEL=your_model_name_here
+LLM_API_KEY=your_llm_api_key_here
+LLM_CONNECT_TIMEOUT=10
+LLM_READ_TIMEOUT=120
+
+# For API server (optional)
+ADMIN_API_KEY=your_custom_admin_key_here
 ```
 
-## Usage Guide
+## Usage Options
 
-### Basic Usage
+VectorFin can be used in multiple ways:
 
-VectorFin can be used to analyze financial data and generate predictions:
+1. **Python Library**: Import and use VectorFin components in your Python code
+2. **Command-line Tool**: Run the `interact_with_model.py` script for predictions
+3. **API Server**: Use the RESTful API for integration with other systems
+
+### Option 1: Python Library Usage
 
 ```python
 from vectorfin.src.models.vectorfin import VectorFinSystem
@@ -109,13 +139,16 @@ for i, interp in enumerate(analysis["interpretations"]):
     print(interp["summary"])
 ```
 
-### Making Real-Time Predictions
+### Option 2: Command-line Tool
 
-For real-time predictions with live market and news data, you can use the `interact_with_model.py` script in the `examples` directory:
+For real-time predictions with live market and news data, you can use the `interact_with_model.py` script:
 
 ```bash
-# Run the example script
+# Basic usage with default settings
 python examples/interact_with_model.py
+
+# With custom parameters
+python examples/interact_with_model.py --tickers AAPL MSFT META --horizon 7 --llm-api-url "https://api.openai.com/v1/chat/completions" --llm-model "gpt-3.5-turbo"
 ```
 
 This script will:
@@ -125,34 +158,117 @@ This script will:
 4. Generate predictions based on the combined data
 5. Use an LLM to interpret the predictions and provide insights
 
-### Customizing the Prediction Process
+### Option 3: API Server
 
-You can customize the prediction process by modifying the following parameters in `interact_with_model.py`:
+Start the API server:
 
-- `tickers`: List of stock tickers to analyze
-- `models_dir`: Directory containing trained models
-- `prediction_horizon`: Number of days to predict ahead
+```bash
+# Using the provided script
+./run_api_server.sh
 
-```python
-# Define parameters
-tickers = ['AAPL', 'MSFT', 'GOOGL', 'TSLA']  # Add any tickers of interest
-models_dir = "./trained_models"
-prediction_horizon = 7  # Extended to 7 days
+# Or manually
+python api.py
 ```
 
-### Understanding VectorFin Outputs
+The server will start on `http://0.0.0.0:8000`. The admin API key will be displayed in the console when you start the server. Make sure to save this key securely as it provides full access to the API.
 
-VectorFin generates three key predictions:
+Access the API documentation at `http://localhost:8000/docs` using your API key.
 
-1. **Direction**: Probability (0-1) of upward price movement
-2. **Magnitude**: Expected percentage change in price
-3. **Volatility**: Expected market volatility
+#### Making a Prediction via API
 
-The LLM interpretation provides:
-- A concise summary of the prediction
-- Key influencing factors based on news and market data
-- Risk assessment
-- Recommended action (buy, hold, sell)
+```bash
+curl -X POST "http://localhost:8000/predict" \
+  -H "X-API-Key: your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tickers": ["AAPL", "MSFT", "GOOGL"],
+    "prediction_horizon": 5
+  }'
+```
+
+## Customizing VectorFin
+
+### Using a Different LLM Provider
+
+VectorFin allows you to use any LLM provider for prediction interpretation:
+
+#### Option 1: Through Command-line Arguments
+
+```bash
+python examples/interact_with_model.py --llm-api-url "https://api.openai.com/v1/chat/completions" --llm-model "gpt-3.5-turbo"
+```
+
+#### Option 2: Through Environment Variables
+
+```bash
+export LLM_API_URL="https://api.openai.com/v1/chat/completions"
+export INTERPRETATION_MODEL="gpt-3.5-turbo"
+export LLM_API_KEY="your-openai-api-key"
+
+python examples/interact_with_model.py
+```
+
+#### Option 3: Through the API
+
+```python
+import requests
+
+# Your VectorFin API key
+api_key = "your_vectorfin_api_key"
+
+# Custom LLM configuration
+llm_config = {
+    "api_url": "https://api.openai.com/v1/chat/completions",
+    "model_name": "gpt-3.5-turbo",
+    "api_key": "your_openai_api_key",
+    "temperature": 0.2,
+    "connect_timeout": 15,
+    "read_timeout": 180
+}
+
+# Make prediction request with custom LLM
+response = requests.post(
+    "http://localhost:8000/predict",
+    headers={
+        "X-API-Key": api_key,
+        "Content-Type": "application/json"
+    },
+    json={
+        "tickers": ["AAPL", "MSFT", "GOOGL"],
+        "prediction_horizon": 5,
+        "llm_config": llm_config
+    }
+)
+
+# Process response
+if response.status_code == 200:
+    result = response.json()
+    print(f"Prediction: {result['predictions']}")
+    print(f"Interpretation: {result['interpretation']}")
+else:
+    print(f"Error: {response.text}")
+```
+
+### Supported LLM APIs
+
+The system is designed to work with any LLM provider that follows the OpenAI-compatible chat completions API format, including:
+
+- OpenAI (ChatGPT)
+- Anthropic Claude (with the appropriate endpoint)
+- Llama models (via Ollama)
+- Local models (LM Studio, etc.)
+- Custom self-hosted models
+
+### LLM Configuration Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `api_url` | URL of the LLM API endpoint | `http://10.102.138.33:6223/v1/chat/completions` |
+| `model_name` | Name of the model to use | gemma-3-4b-it-qat |
+| `api_key` | API key for authentication (if required) | None |
+| `connect_timeout` | Connection timeout in seconds | 10 |
+| `read_timeout` | Read timeout in seconds | 120 |
+| `temperature` | Temperature for text generation (0-1) | 0.3 |
 
 ## Automating Daily Predictions
 
@@ -160,124 +276,80 @@ To automate predictions on a daily basis, you can use a cron job or task schedul
 
 ### Setting Up a Cron Job (Unix/Linux/macOS)
 
-1. Create a wrapper shell script for the prediction task:
+1. Use the provided shell script or create one:
 
 ```bash
-#!/bin/bash
-# Save as /Users/jonathanwallace/vectorfin/run_daily_prediction.sh
+# Make the script executable
+chmod +x run_daily_prediction.sh
 
-# Activate virtual environment if needed
-# source /path/to/your/venv/bin/activate
-
-# Set working directory
-cd /Users/jonathanwallace/vectorfin
-
-# Run the prediction script
-python examples/interact_with_model.py > logs/prediction_$(date +\%Y\%m\%d).log 2>&1
-```
-
-2. Make the script executable:
-
-```bash
-chmod +x /Users/jonathanwallace/vectorfin/run_daily_prediction.sh
-```
-
-3. Add the cron job to run daily (e.g., at 8:00 AM):
-
-```bash
 # Open crontab for editing
 crontab -e
 
 # Add this line to run daily at 8:00 AM
-0 8 * * * /Users/jonathanwallace/vectorfin/run_daily_prediction.sh
+0 8 * * * /path/to/vectorfin/run_daily_prediction.sh
 ```
 
-### Setting Up a Scheduled Task (Windows)
+## API Documentation
 
-1. Create a batch script for the prediction task:
+For detailed API documentation, see the [API Documentation](docs/api_documentation.md) or access the interactive docs at `http://localhost:8000/docs` when the API server is running.
 
-```batch
-@echo off
-REM Save as C:\path\to\vectorfin\run_daily_prediction.bat
+### Key API Endpoints
 
-REM Activate virtual environment if needed
-REM call C:\path\to\your\venv\Scripts\activate.bat
+- **POST /predict**: Make a financial prediction
+- **GET /config**: Get current configuration (admin only)
+- **POST /config**: Update configuration (admin only)
+- **POST /api-keys**: Create a new API key (admin only)
 
-REM Set working directory
-cd C:\path\to\vectorfin
+### API Security Considerations
 
-REM Run the prediction script
-python examples\interact_with_model.py > logs\prediction_%date:~-4,4%%date:~-7,2%%date:~-10,2%.log 2>&1
-```
+- The API uses API key authentication
+- API keys are stored in memory by default (consider using a database for production)
+- Admin API keys provide full access to the system configuration
+- All API calls should be made over HTTPS in production
 
-2. Open Task Scheduler and create a new task:
-   - Trigger: Daily at 8:00 AM
-   - Action: Start a program
-   - Program/script: `C:\path\to\vectorfin\run_daily_prediction.bat`
+## Making the API Internet-Accessible
 
-## Extending VectorFin
+By default, the API runs locally on `0.0.0.0:8000`, making it available:
+- On your local machine at `http://localhost:8000`
+- On your local network at your machine's IP address
 
-### Adding Custom Prediction Models
+To make it accessible across the internet:
 
-You can extend VectorFin by adding custom prediction models:
+### Option 1: Deploy to Vercel (Recommended for Easy Setup)
 
-1. Create a new prediction head class in `vectorfin/src/prediction_interpretation/`
-2. Register your new prediction head in the `PredictionInterpreter` class
-3. Update the interpretation logic to handle your new prediction type
+VectorFin can be deployed to Vercel's serverless platform:
 
-### Using a Different LLM Provider
+1. **Push your code to GitHub/GitLab/Bitbucket**
+2. **Connect to Vercel and import your repository**
+3. **Add your environment variables**:
 
-To use a different LLM provider for interpretations:
+   ```bash
+   NEWS_API_KEY=your_newsapi_key_here
+   LLM_API_URL=your_llm_api_url_here
+   INTERPRETATION_MODEL=your_model_name_here
+   LLM_API_KEY=your_llm_api_key_here
+   ADMIN_API_KEY=your_custom_admin_key_here
+   ```
+4. **Deploy and access your API at your-project.vercel.app**
 
-1. Update the `query_llm_for_interpretation` function in `interact_with_model.py`:
+For detailed instructions, see [Vercel Deployment Guide](docs/vercel_deployment_guide.md).
 
-```python
-def query_llm_for_interpretation(prediction_results, market_data, news_data, prediction_horizon):
-    """Send prediction results to an LLM API for interpretation."""
-    # Create prompt with prediction data
-    prompt = f"""
-    Based on financial data and news analysis, interpret the following prediction:
-    
-    Prediction Horizon: {prediction_horizon} days
-    
-    Market Data Summary:
-    {market_data_summary(market_data)}
-    
-    Recent News Headlines:
-    {format_recent_news(news_data, 5)}
-    
-    Model Prediction Results:
-    {json.dumps(prediction_results, indent=2)}
-    
-    Please provide:
-    1. A concise interpretation of the prediction
-    2. Key factors that might be influencing this prediction
-    3. Potential risks or uncertainties to consider
-    4. A recommendation based on this prediction (buy, hold, sell, etc.)
-    """
-    
-    # Change this section to use your preferred LLM provider
-    response = requests.post(
-        "https://api.openai.com/v1/chat/completions",  # Or other provider
-        headers={
-            "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY')}",
-            "Content-Type": "application/json"
-        },
-        json={
-            "model": "gpt-4",  # Change model as needed
-            "messages": [
-                {"role": "system", "content": "You are a financial analysis assistant that interprets market predictions."},
-                {"role": "user", "content": prompt}
-            ],
-            "temperature": 0.3
-        }
-    )
-    
-    # Parse response based on the API format
-    interpretation = response.json()["choices"][0]["message"]["content"]
-    
-    return interpretation
-```
+### Option 2: Traditional Cloud Deployment
+
+1. **Deploy to a cloud provider**:
+   - AWS (EC2, ECS, Lambda)
+   - Google Cloud (GCE, GKE, Cloud Run)
+   - Azure (VM, AKS, App Service)
+
+2. **Set up security**:
+   - Use HTTPS (SSL/TLS certificates)
+   - Implement more robust authentication
+   - Consider a WAF (Web Application Firewall)
+
+3. **Configure networking**:
+   - Set up a domain name
+   - Configure DNS records
+   - Set up proper firewall rules
 
 ## Troubleshooting
 
@@ -286,7 +358,9 @@ def query_llm_for_interpretation(prediction_results, market_data, news_data, pre
 #### 1. NewsAPI Rate Limiting
 
 **Issue**: "You have made too many requests recently" error from NewsAPI.
+
 **Solution**: NewsAPI free tier has a limit of 100 requests per day. You can:
+
 - Use a paid plan for more requests
 - Implement caching to reduce API calls
 - Reduce the number of tickers analyzed
@@ -294,33 +368,29 @@ def query_llm_for_interpretation(prediction_results, market_data, news_data, pre
 #### 2. LLM Endpoint Connection Errors
 
 **Issue**: "Connection refused" or "Connection error" when calling LLM endpoint.
+
 **Solution**:
+
 - Verify your LLM server is running
 - Check the URL and port in your configuration
 - If using a remote server, ensure proper network access
 
-#### 3. Data Alignment Issues
+#### 3. API Authentication Issues
 
-**Issue**: "KeyError" or "TypeError" when aligning market and news data.
+**Issue**: "Invalid API key" or "API key is missing" errors when using the API.
+
 **Solution**:
-- Ensure both data sources have proper date formatting
-- Check that tickers exist in both datasets
-- Verify that date ranges overlap
 
-## Training
+- Ensure you're including the `X-API-Key` header in your requests
+- Verify the API key is correct
+- For new deployments, check the console output for the generated admin API key
 
-VectorFin can be trained on financial data in multiple ways. For detailed training documentation, see the `docs/training_guide.md` file.
+## Examples and Tools
 
-## License
+- `examples/api_client.py`: Python client for the VectorFin API
+- `examples/interact_with_model.py`: Command-line tool for predictions
+- `examples/visualize_predictions.py`: Visualization tools for predictions
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+## Contributing
 
-## Acknowledgements
-
-- Financial NLP research from Stanford and MIT
-- FinBERT project for financial language models
-- The open-source financial analysis community
-
-## Contact
-
-For support or contributions, please open an issue on GitHub.
+Contributions are welcome! Please feel free to submit a Pull Request.

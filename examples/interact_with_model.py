@@ -121,15 +121,62 @@ def prepare_data_for_prediction(news_data, market_data):
     return processed_news, aligned_market_data
 
 
-def query_llm_for_interpretation(prediction_results, market_data, news_data, prediction_horizon):
+def query_llm_for_interpretation(prediction_results, market_data, news_data, prediction_horizon, 
+                              llm_config=None, system_prompt=None):
     """
     Send prediction results to an LLM API for interpretation.
     
-    You can use OpenAI, Anthropic, or other providers.
-    This function is a template - you'll need to add your API key and endpoint.
+    Args:
+        prediction_results: The prediction results to interpret
+        market_data: Market data for context
+        news_data: News data for context
+        prediction_horizon: Prediction horizon in days
+        llm_config: Optional configuration for the LLM API
+        system_prompt: Optional custom system prompt
+        
+    Returns:
+        LLM interpretation of the prediction results
     """
-    # For demonstration - in a real implementation, you'd send this to an API
-    prompt = f"""
+    # Import config from utils if available
+    try:
+        from vectorfin.src.utils.config import config
+        # Use config if available
+        default_llm_config = {
+            "api_url": config.get("llm.api_url", "http://10.102.138.33:6223/v1/chat/completions"),
+            "model_name": config.get("llm.model_name", "gemma-3-4b-it-qat"),
+            "api_key": config.get("llm.api_key"),
+            "connect_timeout": config.get("llm.connect_timeout", 10),
+            "read_timeout": config.get("llm.read_timeout", 120),
+            "max_retries": config.get("llm.max_retries", 2),
+            "temperature": config.get("llm.temperature", 0.3)
+        }
+    except ImportError:
+        # Fallback to environment variables
+        default_llm_config = {
+            "api_url": os.getenv("LLM_API_URL", "http://10.102.138.33:6223/v1/chat/completions"),
+            "model_name": os.getenv("INTERPRETATION_MODEL", "gemma-3-4b-it-qat"),
+            "api_key": os.getenv("LLM_API_KEY"),
+            "connect_timeout": int(os.getenv("LLM_CONNECT_TIMEOUT", "10")),
+            "read_timeout": int(os.getenv("LLM_READ_TIMEOUT", "120")),
+            "max_retries": int(os.getenv("LLM_MAX_RETRIES", "2")),
+            "temperature": float(os.getenv("LLM_TEMPERATURE", "0.3"))
+        }
+    
+    # Use provided config or fall back to defaults
+    if llm_config is None:
+        llm_config = default_llm_config
+    else:
+        # Merge with defaults
+        for key, value in default_llm_config.items():
+            if key not in llm_config:
+                llm_config[key] = value
+    
+    # Use provided system prompt or use default
+    if system_prompt is None:
+        system_prompt = "You are a financial analysis assistant that interprets market predictions."
+    
+    # Create the user prompt
+    user_prompt = f"""
     Based on financial data and news analysis, interpret the following prediction:
     
     Prediction Horizon: {prediction_horizon} days
@@ -151,40 +198,85 @@ def query_llm_for_interpretation(prediction_results, market_data, news_data, pre
     """
     
     print("\n--- LLM Interpretation Prompt ---")
-    print(prompt)
+    print(user_prompt)
     
-    try:
-        # Try to connect to LLM API with a timeout to avoid long waits
-        response = requests.post(
-            "http://192.168.68.122:6223/v1/chat/completions",  # Or your preferred LLM API
-            json={
-                "model": "gemma-3-4b-it-qat",  # Or your preferred model
+    # Maximum number of retry attempts
+    max_retries = llm_config["max_retries"]
+    retry_count = 0
+    
+    while retry_count <= max_retries:
+        try:
+            # Get API configuration
+            llm_api_url = llm_config["api_url"]
+            model_name = llm_config["model_name"]
+            
+            session = requests.Session()
+            # Use a shorter timeout just for connection establishment
+            adapter = requests.adapters.HTTPAdapter(max_retries=1)
+            session.mount('http://', adapter)
+            session.mount('https://', adapter)
+            
+            print(f"Connecting to LLM API at {llm_api_url}... (Attempt {retry_count + 1}/{max_retries + 1})")
+            
+            # Prepare headers
+            headers = {"Content-Type": "application/json"}
+            if llm_config.get("api_key"):
+                headers["Authorization"] = f"Bearer {llm_config['api_key']}"
+            
+            # Prepare request data
+            request_data = {
+                "model": model_name,
                 "messages": [
-                    {"role": "system", "content": "You are a financial analysis assistant that interprets market predictions."},
-                    {"role": "user", "content": prompt}
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
                 ],
-                "temperature": 0.3
-            },
-            timeout=5  # Set a 5 second timeout
-        )
-        interpretation = response.json()["choices"][0]["message"]["content"]
-    except (requests.RequestException, KeyError, ValueError) as e:
-        print(f"\n--- LLM Connection Failed: {str(e)} ---")
-        print("Generating fallback interpretation...")
-        interpretation = generate_fallback_interpretation(prediction_results, market_data, news_data)
+                "temperature": llm_config["temperature"]
+            }
+            
+            # Separate connection timeout (shorter) from read timeout (longer)
+            response = session.post(
+                llm_api_url,
+                headers=headers,
+                json=request_data,
+                timeout=(llm_config["connect_timeout"], llm_config["read_timeout"])
+            )
+            
+            # Check if request was successful
+            if response.status_code == 200:
+                try:
+                    interpretation = response.json()["choices"][0]["message"]["content"]
+                    print(f"Successfully received interpretation from {model_name}")
+                    return interpretation
+                except (KeyError, IndexError) as e:
+                    print(f"Error parsing LLM response: {str(e)}")
+                    print(f"Response content: {response.text[:500]}...")  # Print first 500 chars of response
+                    # Continue to retry or fallback if parsing failed
+            else:
+                print(f"LLM API returned status code: {response.status_code}")
+                print(f"Response content: {response.text[:500]}...")  # Print first 500 chars of response
+                # If we get a 5xx error, retry; for 4xx errors, don't bother retrying
+                if response.status_code >= 500:
+                    if retry_count < max_retries:
+                        retry_count += 1
+                        print(f"Retrying request (attempt {retry_count + 1}/{max_retries + 1})...")
+                        continue
+                # If we've exhausted retries or it's a 4xx error, fall back
+                break
+        
+        except requests.RequestException as e:
+            print(f"\n--- LLM Connection Failed: {str(e)} ---")
+            if retry_count < max_retries and "timeout" in str(e).lower():  # Only retry timeouts
+                retry_count += 1
+                print(f"Request timed out. Retrying (attempt {retry_count + 1}/{max_retries + 1})...")
+                continue
+            break  # Exit loop if it's not a timeout or if we've exhausted retries
+        except (KeyError, ValueError) as e:
+            print(f"\n--- LLM Processing Error: {str(e)} ---")
+            break  # Don't retry for parsing errors
     
-    # Add fallback in case API response doesn't contain valid interpretation
-    if not interpretation:
-        print("Warning: API call failed or returned empty response. Using fallback interpretation.")
-        interpretation = """
-        ## Financial Prediction Interpretation (FALLBACK)
-        
-        The LLM API request failed. This is a fallback interpretation.
-        
-        Based on the prediction results, the model suggests a possible market movement
-        in the coming days. Please check the numerical prediction values directly
-        and consider consulting another source for interpretation.
-        """
+    # If we get here, all retries failed or we encountered a non-retryable error
+    print("Generating fallback interpretation...")
+    interpretation = generate_fallback_interpretation(prediction_results, market_data, news_data)
     
     return interpretation
 
@@ -243,8 +335,20 @@ def format_recent_news(news_data, num_items=5):
     return "\n".join(formatted)
 
 
-def make_prediction(system, news_data, market_data, prediction_horizon=5):
-    """Use the model to make a prediction."""
+def make_prediction(system, news_data, market_data, prediction_horizon=5, use_real_model=True):
+    """
+    Use the model to make a prediction.
+    
+    Args:
+        system: The trained VectorFin system
+        news_data: Preprocessed news data
+        market_data: Market data in aligned format
+        prediction_horizon: Number of days to predict into the future
+        use_real_model: Whether to use the real model or generate random predictions for testing
+        
+    Returns:
+        Prediction results dictionary
+    """
     print(f"Making prediction with horizon of {prediction_horizon} days...")
     
     # Get the most recent date in the market data
@@ -296,11 +400,44 @@ def make_prediction(system, news_data, market_data, prediction_horizon=5):
     # Get texts from the recent news
     texts = recent_news['headline'].tolist() if not recent_news.empty else []
     
-    # Since we're working with test models, we'll generate random predictions
-    # This is just a demonstration and will be replaced with actual model predictions
-    # when real trained models are available
+    if use_real_model and system is not None:
+        try:
+            # Use the actual model to make predictions
+            print("Using trained model for prediction...")
+            
+            # Prepare inputs for the model
+            if isinstance(market_data, pd.DataFrame) and market_data.shape[0] > 0:
+                # Get features from the market data
+                market_features = system.prepare_market_features(market_data)
+                
+                # Get text features from news data if available
+                text_features = None
+                if texts:
+                    text_features = system.prepare_text_features(texts)
+                
+                # Make predictions using the model components
+                direction_prob = system.predict_direction(market_features, text_features)
+                magnitude = system.predict_magnitude(market_features, text_features)
+                volatility = system.predict_volatility(market_features, text_features)
+                
+                # Format results
+                results = {
+                    'date': latest_date.strftime('%Y-%m-%d'),
+                    'prediction_horizon': prediction_horizon,
+                    'predictions': {
+                        'direction': float(direction_prob),
+                        'magnitude': float(magnitude),
+                        'volatility': float(volatility)
+                    }
+                }
+                return results
+        except Exception as e:
+            print(f"Error using trained model: {str(e)}")
+            print("Falling back to random predictions for demonstration.")
     
-    # Format results
+    # Fallback: Generate random predictions for demonstration
+    # This is useful for testing the API without a trained model
+    print("Using random predictions for demonstration.")
     results = {
         'date': latest_date.strftime('%Y-%m-%d'),
         'prediction_horizon': prediction_horizon,
@@ -413,37 +550,131 @@ def get_recommendation(direction, volatility):
         return "sell or consider short positions with strict risk management"
 
 
-def main():
-    # Define parameters
-    tickers = ['AAPL', 'MSFT', 'GOOGL']
-    models_dir = "./trained_models"
-    prediction_horizon = 5  # days
+def main(args=None):
+    """
+    Main function to run VectorFin prediction.
+    
+    Args:
+        args: Optional command-line arguments
+    """
+    import argparse
+    
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(description="VectorFin Market Prediction")
+    parser.add_argument("--tickers", type=str, nargs="+", default=['AAPL', 'MSFT', 'GOOGL'],
+                        help="List of stock tickers to analyze")
+    parser.add_argument("--models-dir", type=str, default="./trained_models",
+                        help="Directory containing trained models")
+    parser.add_argument("--horizon", type=int, default=5,
+                        help="Prediction horizon in days")
+    parser.add_argument("--news-days", type=int, default=10,
+                        help="Days of news to fetch")
+    parser.add_argument("--market-days", type=int, default=30,
+                        help="Days of market data to fetch")
+    parser.add_argument("--llm-api-url", type=str, default=None,
+                        help="LLM API URL for interpretation")
+    parser.add_argument("--llm-model", type=str, default=None,
+                        help="LLM model name for interpretation")
+    parser.add_argument("--llm-timeout", type=int, default=None,
+                        help="LLM API read timeout in seconds")
+    parser.add_argument("--no-save", action="store_true",
+                        help="Don't save prediction results to file")
+    parser.add_argument("--random", action="store_true",
+                        help="Use random predictions (for testing)")
+    parser.add_argument("--output", type=str, default=None,
+                        help="Output file for prediction results (JSON)")
+    
+    # Parse arguments
+    if args is None:
+        args = parser.parse_args()
+    else:
+        args = parser.parse_args(args)
+    
+    # Try to import config if available
+    try:
+        from vectorfin.src.utils.config import config
+        # Use config for defaults if not specified in arguments
+        if args.llm_api_url is None:
+            args.llm_api_url = config.get("llm.api_url")
+        if args.llm_model is None:
+            args.llm_model = config.get("llm.model_name")
+        if args.llm_timeout is None:
+            args.llm_timeout = config.get("llm.read_timeout")
+    except ImportError:
+        pass
+    
+    # Set up LLM configuration
+    llm_config = {
+        "api_url": args.llm_api_url if args.llm_api_url else os.getenv("LLM_API_URL", "http://10.102.138.33:6223/v1/chat/completions"),
+        "model_name": args.llm_model if args.llm_model else os.getenv("INTERPRETATION_MODEL", "gemma-3-4b-it-qat"),
+        "api_key": os.getenv("LLM_API_KEY"),
+        "read_timeout": args.llm_timeout if args.llm_timeout else int(os.getenv("LLM_READ_TIMEOUT", "120")),
+        "connect_timeout": int(os.getenv("LLM_CONNECT_TIMEOUT", "10")),
+        "max_retries": int(os.getenv("LLM_MAX_RETRIES", "2")),
+        "temperature": float(os.getenv("LLM_TEMPERATURE", "0.3"))
+    }
     
     # Load trained model
-    system = load_trained_model(models_dir)
+    system = load_trained_model(args.models_dir)
     
     # Fetch raw data
-    news_data = fetch_recent_news(tickers, days=10)
-    market_data = fetch_market_data(tickers, days=30)
+    news_data = fetch_recent_news(args.tickers, days=args.news_days)
+    market_data = fetch_market_data(args.tickers, days=args.market_days)
     
     # Prepare data for prediction (preprocess news & align market)
     processed_news, aligned_market_data = prepare_data_for_prediction(news_data, market_data)
     
     # Make prediction using processed data
-    prediction_results = make_prediction(system, processed_news, aligned_market_data, prediction_horizon)
+    prediction_results = make_prediction(
+        system, 
+        processed_news, 
+        aligned_market_data, 
+        args.horizon, 
+        use_real_model=not args.random
+    )
     print("\n--- Prediction Results ---")
     print(json.dumps(prediction_results, indent=2))
     
     # Get LLM interpretation using aligned market and processed news
-    interpretation = query_llm_for_interpretation(prediction_results, aligned_market_data, processed_news, prediction_horizon)
+    interpretation = query_llm_for_interpretation(
+        prediction_results, 
+        aligned_market_data, 
+        processed_news, 
+        args.horizon,
+        llm_config=llm_config
+    )
     print("\n--- LLM Interpretation ---")
     print(interpretation)
     
     # Save prediction results and interpretation to files
-    try:
-        save_prediction_results(prediction_results, interpretation, tickers)
-    except Exception as e:
-        print(f"\nWarning: Could not save prediction results: {str(e)}")
+    if not args.no_save:
+        try:
+            save_prediction_results(prediction_results, interpretation, args.tickers)
+        except Exception as e:
+            print(f"\nWarning: Could not save prediction results: {str(e)}")
+    
+    # Save to custom output file if specified
+    if args.output:
+        try:
+            output_dir = os.path.dirname(args.output)
+            if output_dir and not os.path.exists(output_dir):
+                os.makedirs(output_dir)
+            
+            with open(args.output, "w") as f:
+                json.dump({
+                    "prediction": prediction_results,
+                    "interpretation": interpretation,
+                    "tickers": args.tickers,
+                    "generated_at": datetime.now().isoformat()
+                }, f, indent=2)
+            print(f"Results saved to {args.output}")
+        except Exception as e:
+            print(f"\nWarning: Could not save to output file: {str(e)}")
+    
+    return {
+        "prediction_results": prediction_results,
+        "interpretation": interpretation
+    }
 
 
 if __name__ == "__main__":
