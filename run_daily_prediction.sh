@@ -32,10 +32,23 @@ echo "Activating conda environment..." >> "$LOG_FILE"
 eval "$(conda shell.bash hook)"
 conda activate vectorfin >> "$LOG_FILE" 2>&1 || { echo "Failed to activate conda environment" >> "$LOG_FILE"; exit 1; }
 
-# Check if .env file exists
+# Check if .env file exists and has Alpha Vantage API key
 if [ ! -f "$SCRIPT_DIR/.env" ]; then
-    echo "Error: .env file not found. Ensure it contains NEWS_API_KEY." >> "$LOG_FILE"
+    echo "Error: .env file not found." >> "$LOG_FILE"
     exit 1
+else
+    # Source the .env file to get the environment variables
+    source "$SCRIPT_DIR/.env"
+    
+    # Check if either API key is available, with preference for Alpha Vantage
+    if [ -z "$ALPHA_VANTAGE_API_KEY" ] && [ -z "$NEWS_API_KEY" ]; then
+        echo "Error: Neither ALPHA_VANTAGE_API_KEY nor NEWS_API_KEY found in .env file." >> "$LOG_FILE"
+        exit 1
+    elif [ -n "$ALPHA_VANTAGE_API_KEY" ]; then
+        echo "Using Alpha Vantage API key." >> "$LOG_FILE"
+    else
+        echo "Using News API key. Consider switching to Alpha Vantage for better compatibility." >> "$LOG_FILE"
+    fi
 fi
 
 # Run the prediction script

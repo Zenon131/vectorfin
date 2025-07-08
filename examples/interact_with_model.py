@@ -56,40 +56,80 @@ def load_trained_model(models_dir="./trained_models", device=None):
 
 
 def fetch_recent_news(tickers, days=5):
-    """Fetch real financial news for the given tickers using NewsAPI."""
-    api_key = os.getenv("NEWS_API_KEY")
+    """Fetch real financial news for the given tickers using Alpha Vantage."""
+    api_key = os.getenv("ALPHA_VANTAGE_API_KEY")
     if not api_key:
-        raise RuntimeError("Please set the NEWS_API_KEY environment variable to fetch real news.")
+        raise RuntimeError("Please set the ALPHA_VANTAGE_API_KEY environment variable to fetch news.")
 
     # Define date range
     end_date = datetime.now()
     start_date = end_date - timedelta(days=days)
     
-    news_items = []
-    url = "https://newsapi.org/v2/everything"
-    for ticker in tickers:
-        params = {
-            'q': ticker,
-            'from': start_date.strftime('%Y-%m-%d'),
-            'to': end_date.strftime('%Y-%m-%d'),
-            'language': 'en',
-            'sortBy': 'publishedAt',
-            'pageSize': 100,
-            'apiKey': api_key
-        }
-        response = requests.get(url, params=params)
-        data = response.json().get('articles', [])
-        for article in data:
-            news_items.append({
-                'date': article.get('publishedAt'),
-                'headline': article.get('title'),
-                'ticker': ticker,
-                'source': article.get('source', {}).get('name')
-            })
+    # For Alpha Vantage, we combine tickers into a comma-separated list
+    ticker_string = ",".join(tickers)
     
-    news_data = pd.DataFrame(news_items)
-    news_data['date'] = pd.to_datetime(news_data['date'])
-    return news_data
+    # Fetch news from Alpha Vantage
+    url = "https://www.alphavantage.co/query"
+    params = {
+        'function': 'NEWS_SENTIMENT',
+        'tickers': ticker_string,
+        'time_from': start_date.strftime('%Y%m%dT%H%M'),  # Format: YYYYMMDDTHHMM
+        'limit': 1000,  # Get more results to ensure coverage
+        'apikey': api_key
+    }
+    
+    news_items = []
+    response = requests.get(url, params=params)
+    
+    if response.status_code != 200:
+        print(f"Error fetching news: {response.status_code} - {response.text}")
+        return pd.DataFrame(columns=['date', 'headline', 'ticker', 'source'])
+    
+    data = response.json()
+    
+    # Process the data from Alpha Vantage format
+    for item in data.get('feed', []):
+        # For each ticker mentioned in the article
+        ticker_sentiments = item.get('ticker_sentiment', [])
+        
+        # If no specific tickers, associate with all requested tickers
+        if not ticker_sentiments:
+            for ticker in tickers:
+                news_items.append({
+                    'date': item.get('time_published', ''),
+                    'headline': item.get('title', ''),
+                    'ticker': ticker,
+                    'source': item.get('source', '')
+                })
+        else:
+            # Otherwise, associate with each mentioned ticker
+            for ticker_sentiment in ticker_sentiments:
+                ticker = ticker_sentiment.get('ticker')
+                # Only include if it's one of our requested tickers
+                if ticker in tickers:
+                    news_items.append({
+                        'date': item.get('time_published', ''),
+                        'headline': item.get('title', ''),
+                        'ticker': ticker,
+                        'source': item.get('source', '')
+                    })
+    
+    # Convert to DataFrame
+    if news_items:
+        news_data = pd.DataFrame(news_items)
+        
+        # Format date properly - Alpha Vantage format is YYYYMMDDTHHMM
+        news_data['date'] = pd.to_datetime(news_data['date'], format='%Y%m%dT%H%M', errors='coerce')
+        
+        # Filter out any rows with invalid dates
+        news_data = news_data[~news_data['date'].isna()]
+        
+        # Sort by date
+        news_data = news_data.sort_values(by='date', ascending=False)
+        
+        return news_data
+    else:
+        return pd.DataFrame(columns=['date', 'headline', 'ticker', 'source'])
 
 
 def fetch_market_data(tickers, days=30):

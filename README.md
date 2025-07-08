@@ -73,7 +73,7 @@ pip install -r requirements-api.txt
 
 Before using VectorFin, you'll need:
 
-1. **NewsAPI Key**: Required for fetching real financial news. Sign up at [newsapi.org](https://newsapi.org/).
+1. **Alpha Vantage API Key**: Required for fetching financial news and market data. Sign up for free at [alphavantage.co](https://www.alphavantage.co/support/#api-key).
 2. **LLM API**: For enhanced prediction interpretation. You can use:
    - Local LLM setup (default configuration)
    - OpenAI API (requires API key)
@@ -84,8 +84,11 @@ Before using VectorFin, you'll need:
 Create a `.env` file in the root directory with the following variables:
 
 ```
-# Required for news data
-NEWS_API_KEY=your_newsapi_key_here
+# Required for news data (use Alpha Vantage)
+ALPHA_VANTAGE_API_KEY=your_alphavantage_key_here
+
+# Legacy support (Alpha Vantage is preferred)
+# NEWS_API_KEY=your_newsapi_key_here
 
 # LLM configuration (optional, defaults provided)
 LLM_API_URL=your_llm_api_url_here
@@ -152,8 +155,9 @@ python examples/interact_with_model.py --tickers AAPL MSFT META --horizon 7 --ll
 ```
 
 This script will:
+
 1. Load a pre-trained VectorFin model
-2. Fetch recent news for specified tickers using NewsAPI
+2. Fetch recent news for specified tickers using Alpha Vantage
 3. Fetch recent market data for those tickers
 4. Generate predictions based on the combined data
 5. Use an LLM to interpret the predictions and provide insights

@@ -182,7 +182,11 @@ class PredictionRequest(BaseModel):
     )
     news_api_key: Optional[str] = Field(
         None,
-        description="API key for news service (if not provided, system default will be used)"
+        description="NewsAPI key (if not provided, system default will be used)"
+    )
+    alpha_vantage_api_key: Optional[str] = Field(
+        None,
+        description="Alpha Vantage API key (if not provided, system default will be used)"
     )
 
 
@@ -284,8 +288,14 @@ async def predict(
     try:
         # Set temporary environment variables if provided in the request
         old_news_api_key = os.environ.get("NEWS_API_KEY")
+        old_alpha_vantage_api_key = os.environ.get("ALPHA_VANTAGE_API_KEY")
+        
+        # Set API keys if provided
         if request.news_api_key:
             os.environ["NEWS_API_KEY"] = request.news_api_key
+            
+        if request.alpha_vantage_api_key:
+            os.environ["ALPHA_VANTAGE_API_KEY"] = request.alpha_vantage_api_key
         
         # Build the LLM configuration for this request
         llm_config = None
@@ -366,6 +376,12 @@ async def predict(
                 os.environ["NEWS_API_KEY"] = old_news_api_key
             else:
                 os.environ.pop("NEWS_API_KEY", None)
+                
+        if request.alpha_vantage_api_key:
+            if old_alpha_vantage_api_key:
+                os.environ["ALPHA_VANTAGE_API_KEY"] = old_alpha_vantage_api_key
+            else:
+                os.environ.pop("ALPHA_VANTAGE_API_KEY", None)
 
 
 @app.post(

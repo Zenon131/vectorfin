@@ -35,11 +35,10 @@ class Config:
             "temperature": 0.3,
         },
         "news_api": {
-            "url": "https://newsapi.org/v2/everything",
+            "url": "https://www.alphavantage.co/query",
+            "function": "NEWS_SENTIMENT",
             "days_to_fetch": 10,
-            "language": "en",
-            "sort_by": "publishedAt",
-            "page_size": 100
+            "limit": 1000
         },
         "market_data": {
             "days_to_fetch": 30
@@ -93,8 +92,10 @@ class Config:
         if os.getenv("LLM_READ_TIMEOUT"):
             self._config["llm"]["read_timeout"] = int(os.getenv("LLM_READ_TIMEOUT"))
         
-        # News API configuration
-        if os.getenv("NEWS_API_KEY"):
+        # News API configuration - use Alpha Vantage API key if available
+        if os.getenv("ALPHA_VANTAGE_API_KEY"):
+            self._config["news_api"]["api_key"] = os.getenv("ALPHA_VANTAGE_API_KEY")
+        elif os.getenv("NEWS_API_KEY"):
             self._config["news_api"]["api_key"] = os.getenv("NEWS_API_KEY")
         
         # Model directory
