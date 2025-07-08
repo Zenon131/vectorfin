@@ -82,8 +82,9 @@ secrets.json
 config.json
 
 
-# READMEs
+# READMEs and Others
 README-API.md
 README-CLEAN.md
 README-CONSOLIDATED.md
 README-UPDATED.md
+vercel_deployment_guide.md

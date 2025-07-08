@@ -324,12 +324,14 @@ VectorFin can be deployed to Vercel's serverless platform:
 3. **Add your environment variables**:
 
    ```bash
+   # Required
    NEWS_API_KEY=your_newsapi_key_here
-   LLM_API_URL=your_llm_api_url_here
-   INTERPRETATION_MODEL=your_model_name_here
-   LLM_API_KEY=your_llm_api_key_here
-   ADMIN_API_KEY=your_custom_admin_key_here
+   
+   # Optional (defaults will be used if not set)
+   LLM_API_URL=your_llm_api_url_here  # Optional
+   INTERPRETATION_MODEL=your_model_name_here  # Optional
    ```
+   
 4. **Deploy and access your API at your-project.vercel.app**
 
 For detailed instructions, see [Vercel Deployment Guide](docs/vercel_deployment_guide.md).
